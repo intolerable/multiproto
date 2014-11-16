@@ -23,6 +23,11 @@ data Message = Message ByteString [MessageInner]
   deriving (Show, Read, Eq)
 
 data MessageInner = MessageField Field
+                  | MessageEnum Enum
+                  | NestedMessage Message
+                  | MessageExtend
+                  | MessageExtensions
+                  | MessageOption Option
   deriving (Show, Read, Eq)
 
 data Field = Field
@@ -80,7 +85,7 @@ message = label "message" $ do
   return $ Message iden res
 
 messageBody :: Parser [MessageInner]
-messageBody = return []
+messageBody = label "messageBody" $ undefined
 
 enum :: Parser Enum
 enum = label "enum" $ do
