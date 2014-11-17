@@ -11,7 +11,7 @@ import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.Attoparsec.ByteString.Char8 as Parser
 
 data Proto = ProtoMessage Message
-           | ProtoExtend
+           | ProtoExtend Extend
            | ProtoEnum Enum
            | ProtoImport ByteString
            | ProtoPackage ByteString
@@ -22,15 +22,25 @@ data Proto = ProtoMessage Message
 data Message = Message ByteString [MessageInner]
   deriving (Show, Read, Eq)
 
+data Extend = Extend ByteString [MessageInner]
+  deriving (Show, Read, Eq)
+
 data MessageInner = MessageField Field
                   | MessageEnum Enum
                   | NestedMessage Message
-                  | MessageExtend
+                  | MessageExtend Extend
                   | MessageExtensions
                   | MessageOption Option
   deriving (Show, Read, Eq)
 
-data Field = Field
+data Field = Field Modifier Type ByteString Integer [Option]
+  deriving (Show, Read, Eq)
+
+type Type = ByteString
+
+data Modifier = Required
+              | Optional
+              | Repeated
   deriving (Show, Read, Eq)
 
 data Option = Option [ByteString] Literal
@@ -57,7 +67,7 @@ proto :: Parser Proto
 proto = label "proto" $
   comment <|>
   (ProtoMessage <$> message) <|>
-  extend <|>
+  (ProtoExtend <$> extend) <|>
   (ProtoEnum <$> enum) <|>
   import_ <|>
   package <|>
@@ -67,49 +77,63 @@ proto = label "proto" $
 comment :: Parser Proto
 comment = label "comment" $ do
   "//"
-  takeTill (inClass "\r\n")
-  skipSpace
+  ss $ takeTill (inClass "\r\n")
   pure Empty
 
 message :: Parser Message
 message = label "message" $ do
-  "message"
-  skipSpace
-  iden <- identifier
-  skipSpace
-  "{"
-  skipSpace
-  res <- messageBody
-  skipSpace
-  "}"
+  ss "message"
+  iden <- ss identifier
+  ss "{"
+  res <- ss messageBody
+  ss "}"
   return $ Message iden res
 
 messageBody :: Parser [MessageInner]
-messageBody = label "messageBody" $ undefined
+messageBody = label "messageBody" $ do
+  ss "{"
+  inners <- ss $ many $
+    (MessageField <$> messageField) <|>
+    (MessageEnum <$> enum) <|>
+    (NestedMessage <$> message) <|>
+    (MessageExtend <$> extend)
+  ss "}"
+  return inners
+
+messageField :: Parser Field
+messageField = do
+  m <- ss modifier
+  t <- ss type_
+  i <- ss identifier
+  ss "="
+  n <- ss integerLit
+  ss ";"
+  return $ Field m t i n []
+
+modifier :: Parser Modifier
+modifier =
+  ("required" *> pure Required) <|>
+  ("optional" *> pure Optional) <|>
+  ("repeated" *> pure Repeated)
+
+type_ :: Parser Type
+type_ = undefined
 
 enum :: Parser Enum
 enum = label "enum" $ do
-  "enum"
-  skipSpace
-  res <- identifier
-  skipSpace
-  "{"
-  skipSpace
-  fields <- many enumField
-  skipSpace
-  "}"
-  skipSpace
+  ss "enum"
+  res <- ss identifier
+  ss "{"
+  fields <- ss $ many enumField
+  ss "}"
   return $ Enum res fields
 
 enumField :: Parser EnumInner
 enumField = label "enumField" $ do
-  name <- identifier
-  skipSpace
-  "="
-  skipSpace
-  num <- integerLit
-  skipSpace
-  ";"
+  name <- ss identifier
+  ss "="
+  num <- ss integerLit
+  ss ";"
   return $ EnumField num name
 
 identifier :: Parser ByteString
@@ -124,41 +148,30 @@ capitalIdentifier = label "capitalIdentifier" $ do
   rest <- Parser.takeWhile (inClass "a-zA-Z0-9_")
   return $ ByteString.cons c rest
 
-extend :: Parser Proto
+extend :: Parser Extend
 extend = undefined
 
 import_ :: Parser Proto
 import_ = label "import_" $ do
-  "import"
-  skipSpace
-  res <- stringLit
-  skipSpace
-  ";"
-  skipSpace
+  ss "import"
+  res <- ss stringLit
+  ss ";"
   return $ ProtoImport res
 
 package :: Parser Proto
 package = label "package" $ do
-  "package"
-  skipSpace
-  res <- stringLit
-  skipSpace
-  ";"
-  skipSpace
+  ss "package"
+  res <- ss stringLit
+  ss ";"
   return $ ProtoPackage res
 
 option :: Parser Option
 option = label "option" $ do
-  "option"
-  skipSpace
-  ids <- identifier `sepBy` "."
-  skipSpace
-  "="
-  skipSpace
-  res <- constant
-  skipSpace
-  ";"
-  skipSpace
+  ss "option"
+  ids <- ss $ identifier `sepBy` "."
+  ss "="
+  res <- ss constant
+  ss ";"
   return $ Option ids res
 
 constant :: Parser Literal
@@ -195,3 +208,6 @@ readParse s =
 
 label :: String -> Parser a -> Parser a
 label n p = p <?> n
+
+ss :: Parser a -> Parser a
+ss p = p <* skipSpace
