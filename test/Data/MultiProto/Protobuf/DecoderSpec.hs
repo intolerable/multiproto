@@ -19,7 +19,7 @@ spec = do
   describe "varint" $ do
     prop "decode . encode == id" $ do
       n <- arbitrary `suchThat` (> 0)
-      return $ runGet varint (runPut (putVarint n)) == Right (n :: Integer)
+      return $ runGet varintInteger (runPut (putVarint n)) == Right (n :: Integer)
 
   describe "field" $ do
     prop "decode . encode == id" $ do
