@@ -19,6 +19,7 @@ library
   build-depends:
     base >= 4.7 && < 4.8,
     attoparsec,
+    binary-literal-qq,
     bytestring,
     cereal,
     template-haskell
@@ -27,6 +28,8 @@ library
   ghc-options: -Wall
   default-extensions:
     OverloadedStrings
+    QuasiQuotes
+    TemplateHaskell
     ViewPatterns
 
 test-suite test
