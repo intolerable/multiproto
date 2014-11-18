@@ -5,6 +5,7 @@ module Data.MultiProto.Protobuf.Parser where
 import Control.Applicative
 import Data.Attoparsec.ByteString.Char8 hiding (option)
 import Data.ByteString.Char8 (ByteString)
+import Data.Monoid
 import Prelude hiding (Enum)
 import Text.Read (readMaybe)
 import qualified Data.Attoparsec.ByteString.Char8 as Parser
@@ -183,9 +184,18 @@ constant = choice
   , BoolLit <$> boolLit ]
 
 stringLit :: Parser ByteString
-stringLit =
-  ("\"" *> takeTill (=='"') <* "\"") <|>
-  ("'" *> takeTill (=='\'') <* "'")
+stringLit = mconcat <$> (("\"" *> many (insides '"') <* "\"") <|> ("\'" *> many (insides '\'') <* "\'"))
+  where insides b = escapeHex <|> escapeChar <|> (ByteString.singleton <$> satisfy (notInClass (b : "\0\n")))
+
+escapeChar :: Parser ByteString
+escapeChar = ByteString.singleton <$> (char '\\' *> satisfy (inClass "abdnrtv\\?'\""))
+
+escapeHex :: Parser ByteString
+escapeHex = fmap fst $ match $ do
+  char '\\'
+  satisfy $ inClass "xX"
+  satisfy $ inClass "A-Fa-f0-9"
+  Parser.option '\\' $ satisfy $ inClass "A-Fa-f0-9"
 
 integerLit :: Parser Integer
 integerLit = readParse =<< Parser.takeWhile (inClass "0-9.+-")

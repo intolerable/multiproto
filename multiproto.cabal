@@ -14,6 +14,7 @@ library
   exposed-modules:
     Data.MultiProto.Protobuf.Decoder
     Data.MultiProto.Protobuf.Encoder
+    Data.MultiProto.Protobuf.Example
     Data.MultiProto.Protobuf.Parser
     Data.MultiProto.Protobuf.TH
   build-depends:
@@ -22,6 +23,8 @@ library
     binary-literal-qq,
     bytestring,
     cereal,
+    data-default,
+    semigroups,
     template-haskell
   hs-source-dirs: src/
   default-language: Haskell2010
@@ -42,6 +45,8 @@ test-suite test
     base == 4.*,
     Cabal >= 1.16.0,
     attoparsec,
+    bytestring,
+    cereal,
     multiproto,
     hspec
   GHC-options: -Wall -Werror
