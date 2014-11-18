@@ -185,17 +185,27 @@ constant = choice
 
 stringLit :: Parser ByteString
 stringLit = mconcat <$> (("\"" *> many (insides '"') <* "\"") <|> ("\'" *> many (insides '\'') <* "\'"))
-  where insides b = escapeHex <|> escapeChar <|> (ByteString.singleton <$> satisfy (notInClass (b : "\0\n")))
+  where insides b = escapeHex <|> escapeChar <|> escapeOct <|> (ByteString.singleton <$> satisfy (notInClass (b : "\0\n")))
 
 escapeChar :: Parser ByteString
-escapeChar = ByteString.singleton <$> (char '\\' *> satisfy (inClass "abdnrtv\\?'\""))
+escapeChar = fmap fst $ match $ do
+  char '\\'
+  satisfy $ inClass "abdnrtv\\?'\""
 
 escapeHex :: Parser ByteString
 escapeHex = fmap fst $ match $ do
   char '\\'
   satisfy $ inClass "xX"
   satisfy $ inClass "A-Fa-f0-9"
-  Parser.option '\\' $ satisfy $ inClass "A-Fa-f0-9"
+  Parser.option () $ satisfy (inClass "A-Fa-f0-9") *> pure ()
+
+escapeOct :: Parser ByteString
+escapeOct = fmap fst $ match $ do
+  char '\\'
+  Parser.option "" "0"
+  satisfy $ inClass "0-7"
+  Parser.option () $ satisfy (inClass "0-7") *> pure ()
+  Parser.option () $ satisfy (inClass "0-7") *> pure ()
 
 integerLit :: Parser Integer
 integerLit = readParse =<< Parser.takeWhile (inClass "0-9.+-")

@@ -28,10 +28,10 @@ varint = do
       return $ (n `shiftL` 7) + fromIntegral (w `clearBit` 7)
     else return $ fromIntegral $ w `clearBit` 7
 
-field :: Get (Type, Int)
+field :: Get (Int, Type)
 field = do
   v <- varint
-  return (toEnum $ v .&. [b| 0000 0111 |], v `shiftR` 3)
+  return (v `shiftR` 3, toEnum $ v .&. [b| 0000 0111 |])
 
 parseBit64 :: Get ByteString
 parseBit64 = S.getBytes 8
@@ -44,7 +44,7 @@ parseLengthDelimited = varint >>= S.getBytes
 
 parseFullField :: Get (Type, Int, Value)
 parseFullField = do
-  (t, i) <- field
+  (i, t) <- field
   (,,) <$> pure t <*> pure i <*> case t of
     Varint -> VarintValue <$> varint
     Bit64 -> ByteStringValue <$> parseBit64

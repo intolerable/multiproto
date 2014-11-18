@@ -48,6 +48,7 @@ test-suite test
     bytestring,
     cereal,
     multiproto,
-    hspec
+    hspec,
+    QuickCheck
   GHC-options: -Wall -Werror
 
